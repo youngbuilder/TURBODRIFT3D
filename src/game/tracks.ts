@@ -55,71 +55,49 @@ export interface TrackData {
 }
 
 export const TRACK_METADATA: Record<TrackId, TrackMetadata> = {
-  'city-downtown': {
-    id: 'city-downtown',
-    name: '네온 시티 다운타운',
-    subtitle: '빌딩 없는 깔끔한 고속 서킷',
-    theme: '도시 (City)',
-    difficulty: '★☆☆',
-    length: '1.2 km',
-    themeColor: '#38bdf8',
-    description: '장애물 없이 넓고 깔끔하게 펼쳐진 고속 도심 서킷',
+  'grand-prix-circuit': {
+    id: 'grand-prix-circuit',
+    name: '그랑프리 서킷',
+    subtitle: '포뮬러 표준 레이싱',
+    theme: '전용 경기장 (GP)',
+    difficulty: '★★★',
+    length: '2.5 km',
+    themeColor: '#ef4444',
+    description: '긴 직선과 헤어핀이 조화된 전문적인 F1 스타일 서킷',
     hazards: '없음',
   },
-  'sunset-desert': {
-    id: 'sunset-desert',
-    name: '선셋 캐년',
-    subtitle: '황혼의 탁 트인 사막 협곡',
-    theme: '사막 (Desert)',
-    difficulty: '★★☆',
-    length: '1.7 km',
-    themeColor: '#f97316',
-    description: '장애물 없이 시원하게 트인 붉은 사막 코스',
-    hazards: '모래 노면',
-  },
-  'frost-ice': {
-    id: 'frost-ice',
-    name: '프로스트 피크',
-    subtitle: '얼어붙은 설원 빙판길',
-    theme: '설원 (Snow & Ice)',
-    difficulty: '★★★',
-    length: '1.6 km',
-    themeColor: '#67e8f9',
-    description: '장애물 없는 광활한 설원 빙판 서킷',
-    hazards: '미끄러운 노면',
-  },
-  'jungle-ruins': {
-    id: 'jungle-ruins',
-    name: '고대 정글 유적',
-    subtitle: '탁 트인 정글 서킷',
-    theme: '정글 (Jungle)',
-    difficulty: '★★☆',
-    length: '1.9 km',
-    themeColor: '#22c55e',
-    description: '장애물 없는 쾌적한 정글 유적 트랙',
-    hazards: '연속 S자 커브',
-  },
-  'future-cyber': {
-    id: 'future-cyber',
-    name: '사이버 스페이스',
-    subtitle: '홀로그램과 하이테크 미래 도시',
-    theme: '사이버 (Cyber Future)',
+  'night-street-stadium': {
+    id: 'night-street-stadium',
+    name: '나이트 시티 스타디움',
+    subtitle: '화려한 야간 시가지',
+    theme: '시가지 서킷 (Street)',
     difficulty: '★★★★',
-    length: '1.5 km',
+    length: '2.1 km',
     themeColor: '#06b6d4',
-    description: '빛의 가속 패널이 가득한 미래형 광활한 트랙',
-    hazards: '초고속 스피드 존',
+    description: '밤하늘 아래 펼쳐지는 좁고 복잡한 시가지 코스',
+    hazards: '좁은 코너',
   },
-  'aurora-space': {
-    id: 'aurora-space',
-    name: '오로라 스타디움',
-    subtitle: '우주 상공 오로라 궤도',
-    theme: '우주 (Space)',
+  'mountain-tech-circuit': {
+    id: 'mountain-tech-circuit',
+    name: '마운틴 테크 서킷',
+    subtitle: '산악 지형 테크니컬 코스',
+    theme: '하이브리드 (Hybrid)',
     difficulty: '★★★★',
-    length: '2.0 km',
-    themeColor: '#a855f7',
-    description: '우주 공간에 장애물 없이 펼쳐진 오로라 서킷',
-    hazards: '고속 코너링',
+    length: '2.8 km',
+    themeColor: '#22c55e',
+    description: '산악 지형의 연속적인 테크니컬 구간',
+    hazards: '복잡한 커브',
+  },
+  'city-downtown': {
+    id: 'city-downtown',
+    name: '시티 다운타운',
+    subtitle: '도심 속의 질주',
+    theme: '시가지 (City)',
+    difficulty: '★★★',
+    length: '2.3 km',
+    themeColor: '#f59e0b',
+    description: '빌딩 숲 사이를 가로지르는 도심 서킷',
+    hazards: '많은 코너',
   },
 };
 
@@ -129,7 +107,7 @@ function createRoadTexture(theme: TrackId): THREE.CanvasTexture {
   canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
 
-  ctx.fillStyle = theme === 'frost-ice' ? '#334e68' : theme === 'sunset-desert' ? '#45352c' : '#2d333b';
+  ctx.fillStyle = '#2d333b';
   ctx.fillRect(0, 0, 512, 1024);
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(24, 0, 10, 1024);
@@ -153,7 +131,7 @@ function createCurbTexture(theme: TrackId): THREE.CanvasTexture {
   canvas.width = 128;
   canvas.height = 256;
   const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = theme === 'frost-ice' ? '#0284c7' : '#ef4444';
+  ctx.fillStyle = '#ef4444';
   ctx.fillRect(0, 0, 128, 128);
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 128, 128, 128);
@@ -167,25 +145,47 @@ function createCurbTexture(theme: TrackId): THREE.CanvasTexture {
 }
 
 function getTrackCurve(id: TrackId): THREE.CatmullRomCurve3 {
-  let points: THREE.Vector3[] = [
-    new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(160, 0, -40),
-    new THREE.Vector3(300, 0, 80),
-    new THREE.Vector3(320, 0, 240),
-    new THREE.Vector3(240, 0, 380),
-    new THREE.Vector3(80, 0, 420),
-    new THREE.Vector3(-100, 0, 400),
-    new THREE.Vector3(-260, 0, 260),
-    new THREE.Vector3(-290, 0, 100),
-    new THREE.Vector3(-170, 0, -40),
-  ];
+  let points: THREE.Vector3[] = [];
+  const scale = 1.6;
+  if (id === 'grand-prix-circuit') {
+    points = [
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(200 * scale, 0, 0),
+      new THREE.Vector3(300 * scale, 0, 100 * scale),
+      new THREE.Vector3(300 * scale, 0, 300 * scale),
+      new THREE.Vector3(0, 0, 400 * scale),
+      new THREE.Vector3(-200 * scale, 0, 200 * scale),
+      new THREE.Vector3(-100 * scale, 0, 50 * scale),
+      new THREE.Vector3(0, 0, 0),
+    ];
+  } else if (id === 'night-street-stadium') {
+    points = [
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(100 * scale, 0, -50 * scale),
+      new THREE.Vector3(150 * scale, 0, 50 * scale),
+      new THREE.Vector3(50 * scale, 0, 150 * scale),
+      new THREE.Vector3(-50 * scale, 0, 150 * scale),
+      new THREE.Vector3(-100 * scale, 0, 50 * scale),
+      new THREE.Vector3(0, 0, 0),
+    ];
+  } else {
+    points = [
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(150 * scale, 0, -100 * scale),
+      new THREE.Vector3(350 * scale, 0, 0),
+      new THREE.Vector3(350 * scale, 0, 300 * scale),
+      new THREE.Vector3(100 * scale, 0, 400 * scale),
+      new THREE.Vector3(-100 * scale, 0, 200 * scale),
+      new THREE.Vector3(0, 0, 0),
+    ];
+  }
   points.forEach((p) => (p.y = 0));
   return new THREE.CatmullRomCurve3(points, true, 'centripetal');
 }
 
 export function buildTrack(id: TrackId): TrackData {
   const curve = getTrackCurve(id);
-  const trackWidth = 32;
+  const trackWidth = 42;
   const curbWidth = 1.8;
   const segments = 400;
   const totalLength = curve.getLength();
@@ -336,99 +336,64 @@ export function buildTrack(id: TrackId): TrackData {
 
   railsMesh.add(startLineMesh);
 
-  const speedPads: SpeedPad[] = [];
-  const speedPadCanvas = document.createElement('canvas');
-  speedPadCanvas.width = 256;
-  speedPadCanvas.height = 256;
-  const spCtx = speedPadCanvas.getContext('2d')!;
-  spCtx.fillStyle = '#0f172a';
-  spCtx.fillRect(0, 0, 256, 256);
-  spCtx.strokeStyle = '#06b6d4';
-  spCtx.lineWidth = 26;
-  for (let i = 0; i < 3; i++) {
-    const y = 80 + i * 55;
-    spCtx.beginPath();
-    spCtx.moveTo(60, y + 25);
-    spCtx.lineTo(128, y - 25);
-    spCtx.lineTo(196, y + 25);
-    spCtx.stroke();
-  }
-  const speedPadTex = new THREE.CanvasTexture(speedPadCanvas);
-  speedPadTex.colorSpace = THREE.SRGBColorSpace;
-  const speedPadMat = new THREE.MeshBasicMaterial({ map: speedPadTex, transparent: true, opacity: 0.95 });
-
-  [0.15, 0.42, 0.68, 0.88].forEach((t) => {
-    const pt = curve.getPointAt(t);
-    const tan = curve.getTangentAt(t);
-    const padMesh = new THREE.Mesh(new THREE.PlaneGeometry(6.0, 8.0), speedPadMat);
-    padMesh.position.copy(pt).add(new THREE.Vector3(0, 0.05, 0));
-    padMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tan);
-    padMesh.rotateX(-Math.PI / 2);
-    speedPads.push({ position: pt.clone(), rotation: padMesh.rotation.clone(), mesh: padMesh });
-    railsMesh.add(padMesh);
-  });
-
-  const itemBoxes: ItemBox[] = [];
-  [0.08, 0.28, 0.55, 0.78].forEach((t, i) => {
-    const pt = curve.getPointAt(t);
-    const tan = curve.getTangentAt(t);
-    const bin = new THREE.Vector3(0, 1, 0).cross(tan).normalize();
-    [-8, 0, 8].forEach((offset, idx) => {
-      const boxPos = pt.clone().addScaledVector(bin, offset).add(new THREE.Vector3(0, 1.4, 0));
-      const boxGroup = new THREE.Group();
-      boxGroup.position.copy(boxPos);
-
-      const outerMat = new THREE.MeshPhysicalMaterial({
-        color: 0x38bdf8,
-        emissive: 0x0284c7,
-        emissiveIntensity: 0.9,
-        transmission: 0.6,
-        roughness: 0.1,
-        transparent: true,
-        opacity: 0.85,
-      });
-      const outerCube = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.8, 1.8), outerMat);
-      const innerCube = new THREE.Mesh(
-        new THREE.OctahedronGeometry(0.9),
-        new THREE.MeshBasicMaterial({ color: 0xfacc15, wireframe: true })
-      );
-      boxGroup.add(outerCube, innerCube);
-      railsMesh.add(boxGroup);
-
-      itemBoxes.push({
-        id: `box_${i}_${idx}`,
-        position: boxPos,
-        mesh: boxGroup,
-        active: true,
-        respawnTime: 0,
-      });
-    });
-  });
-
+  // BUILDINGS & SCENERY PLACED SAFELY ALONGSIDE THE TRACK (Offset >= 45 units from centerline)
   const sceneryGroup = new THREE.Group();
-  let skyColor = 0x1e293b;
-  let groundColor = 0x1e293b;
+  if (id === 'city-downtown' || id === 'night-street-stadium') {
+    const bCanvas = document.createElement('canvas');
+    bCanvas.width = 128;
+    bCanvas.height = 256;
+    const bCtx = bCanvas.getContext('2d')!;
+    bCtx.fillStyle = id === 'night-street-stadium' ? '#0f172a' : '#1e293b';
+    bCtx.fillRect(0, 0, 128, 256);
+    bCtx.fillStyle = id === 'night-street-stadium' ? '#38bdf8' : '#334155';
+    for (let i = 0; i < 256; i += 24) {
+      bCtx.fillRect(16, i + 4, 32, 16);
+      bCtx.fillRect(64, i + 4, 32, 16);
+    }
+    const bTex = new THREE.CanvasTexture(bCanvas);
+    const bMat = new THREE.MeshStandardMaterial({ map: bTex, roughness: 0.3, metalness: 0.2 });
+    const bGeom = new THREE.BoxGeometry(1, 1, 1);
 
-  if (id === 'sunset-desert') {
-    skyColor = 0xfdba74;
-    groundColor = 0xc2410c;
-  } else if (id === 'frost-ice') {
-    skyColor = 0x93c5fd;
-    groundColor = 0xf8fafc;
-  } else if (id === 'jungle-ruins') {
-    skyColor = 0x4ade80;
-    groundColor = 0x15803d;
-  } else if (id === 'aurora-space') {
-    skyColor = 0x1e1b4b;
-    groundColor = 0x0f172a;
-  } else if (id === 'future-cyber') {
-    skyColor = 0x0f172a;
-    groundColor = 0x0f172a;
+    const numSceneryPoints = 60;
+    for (let i = 0; i < numSceneryPoints; i++) {
+      const t = i / numSceneryPoints;
+      const pt = curve.getPointAt(t);
+      const tangent = curve.getTangentAt(t).normalize();
+      const binormal = new THREE.Vector3(0, 1, 0).cross(tangent).normalize();
+
+      // Left side building
+      if (Math.random() > 0.2) {
+        const distLeft = 45 + Math.random() * 40;
+        const posLeft = pt.clone().addScaledVector(binormal, -distLeft);
+        const h = 50 + Math.random() * 130;
+        const w = 22 + Math.random() * 28;
+        const building = new THREE.Mesh(bGeom, bMat);
+        building.scale.set(w, h, w);
+        building.position.set(posLeft.x, h / 2, posLeft.z);
+        building.castShadow = true;
+        building.receiveShadow = true;
+        sceneryGroup.add(building);
+      }
+
+      // Right side building
+      if (Math.random() > 0.2) {
+        const distRight = 45 + Math.random() * 40;
+        const posRight = pt.clone().addScaledVector(binormal, distRight);
+        const h = 50 + Math.random() * 130;
+        const w = 22 + Math.random() * 28;
+        const building = new THREE.Mesh(bGeom, bMat);
+        building.scale.set(w, h, w);
+        building.position.set(posRight.x, h / 2, posRight.z);
+        building.castShadow = true;
+        building.receiveShadow = true;
+        sceneryGroup.add(building);
+      }
+    }
   }
 
   const groundGeom = new THREE.PlaneGeometry(2000, 2000, 32, 32);
   const groundMat = new THREE.MeshStandardMaterial({
-    color: groundColor,
+    color: 0x1e293b,
     roughness: 0.95,
   });
   const groundMesh = new THREE.Mesh(groundGeom, groundMat);
@@ -449,15 +414,15 @@ export function buildTrack(id: TrackId): TrackData {
     railsMesh,
     sceneryGroup,
     checkpoints,
-    speedPads,
-    itemBoxes,
+    speedPads: [],
+    itemBoxes: [],
     startPosition,
     startDirection,
     trackWidth,
     totalLength,
-    skyColor,
-    fogColor: skyColor,
-    ambientColor: skyColor,
+    skyColor: 0x1e293b,
+    fogColor: 0x334155,
+    ambientColor: 0x64748b,
     sunColor: 0xffffff,
     sunPosition: new THREE.Vector3(150, 220, 100),
     groundMesh,

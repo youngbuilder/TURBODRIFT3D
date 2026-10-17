@@ -114,10 +114,10 @@ export function buildProceduralCar(customization: CarCustomization): CarVisuals 
 
   const modelType: CarModelType = customization.model;
   let isTwoWheeled = false;
-  let frontLeftWheel: THREE.Group;
-  let frontRightWheel: THREE.Group;
-  let rearLeftWheel: THREE.Group;
-  let rearRightWheel: THREE.Group;
+  let frontLeftWheel: THREE.Group = new THREE.Group();
+  let frontRightWheel: THREE.Group = new THREE.Group();
+  let rearLeftWheel: THREE.Group = new THREE.Group();
+  let rearRightWheel: THREE.Group = new THREE.Group();
 
   if (modelType === 'sport') {
     const chassis = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.32, 3.8), bodyMat);
@@ -219,7 +219,7 @@ export function buildProceduralCar(customization: CarCustomization): CarVisuals 
     rearLeftWheel.position.set(-0.95, 0.36, -1.2);
     rearRightWheel = createProceduralWheel(customization.accentColor, 0.36, 0.28);
     rearRightWheel.position.set(0.95, 0.36, -1.2);
-  } else {
+  } else if (modelType === 'suv') {
     // suv
     const body = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.6, 4.1), bodyMat);
     body.position.y = 0.58;

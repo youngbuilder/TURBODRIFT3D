@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { sound } from './audio';
@@ -36,7 +36,6 @@ interface GameCanvasProps {
     item: boolean;
   };
   isRacing?: boolean;
-  quality: number;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -56,16 +55,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   onCycleCamera,
   touchControls,
   isRacing = true,
-  quality,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const animFrameRef = useRef<number | null>(null);
   const playerStateRef = useRef<VehicleState | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraModeRef = useRef<number>(cameraMode);
   cameraModeRef.current = cameraMode;
   const isRacingRef = useRef<boolean>(isRacing);
   isRacingRef.current = isRacing;
+  const [raceStage, setRaceStage] = useState<'racing' | 'finishing' | 'podium' | 'finished'>('racing');
+  const [raceEndTime, setRaceEndTime] = useState<number | null>(null);
+  const [stageTimer, setStageTimer] = useState<number>(0);
+
 
   const inputRef = useRef<VehicleInput>({
     forward: false,
@@ -77,23 +78,30 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   });
 
   useEffect(() => {
-    if (rendererRef.current) {
-        rendererRef.current.setPixelRatio(Math.min(window.devicePixelRatio, 2) * (quality / 100));
-        rendererRef.current.shadowMap.enabled = quality > 50;
-    }
-  }, [quality]);
-
-  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT') return;
       sound.resume();
-      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') inputRef.current.forward = true;
-      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') inputRef.current.backward = true;
-      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') inputRef.current.left = true;
-      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') inputRef.current.right = true;
-      if (e.key === ' ' || e.key === 'Shift') inputRef.current.drift = true;
-      if (e.key === 'f' || e.key === 'F' || e.key === 'e' || e.key === 'E') inputRef.current.useItem = true;
-      if (e.key === 'c' || e.key === 'C') onCycleCamera();
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+        inputRef.current.forward = true;
+      }
+      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+        inputRef.current.backward = true;
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        inputRef.current.left = true;
+      }
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        inputRef.current.right = true;
+      }
+      if (e.key === ' ' || e.key === 'Shift') {
+        inputRef.current.drift = true;
+      }
+      if (e.key === 'f' || e.key === 'F' || e.key === 'e' || e.key === 'E') {
+        inputRef.current.useItem = true;
+      }
+      if (e.key === 'c' || e.key === 'C') {
+        onCycleCamera();
+      }
       if (e.key === 'r' || e.key === 'R') {
         if (playerStateRef.current) {
           playerStateRef.current.speedKmh = 0;
@@ -103,12 +111,24 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') inputRef.current.forward = false;
-      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') inputRef.current.backward = false;
-      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') inputRef.current.left = false;
-      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') inputRef.current.right = false;
-      if (e.key === ' ' || e.key === 'Shift') inputRef.current.drift = false;
-      if (e.key === 'f' || e.key === 'F' || e.key === 'e' || e.key === 'E') inputRef.current.useItem = false;
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+        inputRef.current.forward = false;
+      }
+      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+        inputRef.current.backward = false;
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        inputRef.current.left = false;
+      }
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        inputRef.current.right = false;
+      }
+      if (e.key === ' ' || e.key === 'Shift') {
+        inputRef.current.drift = false;
+      }
+      if (e.key === 'f' || e.key === 'F' || e.key === 'e' || e.key === 'E') {
+        inputRef.current.useItem = false;
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -126,7 +146,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       inputRef.current.left = touchControls.left;
       inputRef.current.right = touchControls.right;
       inputRef.current.drift = touchControls.drift;
-      if (touchControls.item) inputRef.current.useItem = true;
+      if (touchControls.item) {
+        inputRef.current.useItem = true;
+      }
     }
   }, [touchControls]);
 
@@ -145,13 +167,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const camera = new THREE.PerspectiveCamera(65, width / height, 0.2, 900);
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2) * (quality / 100));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.25;
-    renderer.shadowMap.enabled = quality > 50;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
-    rendererRef.current = renderer;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -217,6 +238,48 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       scene.add(bVis.group);
       botVisualsMap.set(bot.id, bVis);
     });
+
+    const particleCount = 200;
+    const particleGeom = new THREE.BufferGeometry();
+    const particlePositions = new Float32Array(particleCount * 3);
+    const particleOpacities = new Float32Array(particleCount);
+    const particleSizes = new Float32Array(particleCount);
+    const particleColors = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+      particlePositions[i * 3 + 1] = -100;
+      particleOpacities[i] = 0;
+      particleSizes[i] = 0.5;
+    }
+    particleGeom.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+    particleGeom.setAttribute('opacity', new THREE.BufferAttribute(particleOpacities, 1));
+    particleGeom.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1));
+    particleGeom.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
+
+    const particleMat = new THREE.PointsMaterial({
+      size: 0.8,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.8,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const particles = new THREE.Points(particleGeom, particleMat);
+    scene.add(particles);
+
+    let nextParticleIdx = 0;
+    const spawnParticle = (pos: THREE.Vector3, color: THREE.Color, size: number) => {
+      const idx = nextParticleIdx % particleCount;
+      particlePositions[idx * 3] = pos.x + (Math.random() - 0.5) * 0.4;
+      particlePositions[idx * 3 + 1] = pos.y + 0.1;
+      particlePositions[idx * 3 + 2] = pos.z + (Math.random() - 0.5) * 0.4;
+      particleColors[idx * 3] = color.r;
+      particleColors[idx * 3 + 1] = color.g;
+      particleColors[idx * 3 + 2] = color.b;
+      particleSizes[idx] = size;
+      particleOpacities[idx] = 1.0;
+      nextParticleIdx++;
+    };
 
     const activeTrapMeshes: THREE.Mesh[] = [];
     const cameraTarget = new THREE.Vector3();
@@ -293,6 +356,37 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         playerState.isDrifting
       );
 
+      if (playerState.isDrifting) {
+        const rearL = playerVisuals.rearLeftWheel.getWorldPosition(new THREE.Vector3());
+        const rearR = playerVisuals.rearRightWheel.getWorldPosition(new THREE.Vector3());
+        const sparkColor =
+          playerState.driftBoostLevel === 3
+            ? new THREE.Color(0xa855f7)
+            : playerState.driftBoostLevel === 2
+            ? new THREE.Color(0xf97316)
+            : new THREE.Color(0x38bdf8);
+        spawnParticle(rearL, sparkColor, 1.2);
+        spawnParticle(rearR, sparkColor, 1.2);
+      }
+
+      if (playerState.isBoosting) {
+        const rearL = playerVisuals.rearLeftWheel.getWorldPosition(new THREE.Vector3());
+        const rearR = playerVisuals.rearRightWheel.getWorldPosition(new THREE.Vector3());
+        spawnParticle(rearL, new THREE.Color(0x06b6d4), 1.4);
+        spawnParticle(rearR, new THREE.Color(0x06b6d4), 1.4);
+      }
+
+      for (let i = 0; i < particleCount; i++) {
+        if (particleOpacities[i] > 0) {
+          particleOpacities[i] -= delta * 1.8;
+          particlePositions[i * 3 + 1] += delta * 0.8;
+          if (particleOpacities[i] <= 0) {
+            particlePositions[i * 3 + 1] = -100;
+          }
+        }
+      }
+      particleGeom.attributes.position.needsUpdate = true;
+
       sound.updateEngine(Math.abs(playerState.speedKmh), inputRef.current.forward);
       sound.updateDrift(playerState.isDrifting, Math.abs(playerState.steerAngle));
 
@@ -341,37 +435,66 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       });
 
       const allRacers = [
-        { id: playerInfo.id, progress: playerState.totalProgress },
-        ...bots.map((b) => ({ id: b.id, progress: b.totalProgress })),
-        ...Array.from(peerPlayers.values()).map((p) => ({ id: p.id, progress: p.progress })),
+        { id: playerInfo.id, lap: playerState.currentLap, progress: playerState.totalProgress, finished: playerState.isFinished, time: playerState.finishTime },
+        ...bots.map((b) => ({ id: b.id, lap: b.lap, progress: b.totalProgress, finished: b.isFinished, time: b.finishTime })),
+        ...Array.from(peerPlayers.values()).map((p) => ({ id: p.id, lap: p.lap, progress: p.progress, finished: p.finished, time: p.finishTime })),
       ];
-      allRacers.sort((a, b) => b.progress - a.progress);
+      
+      allRacers.sort((a, b) => {
+        if (a.finished && b.finished) return a.time - b.time;
+        if (a.finished) return -1;
+        if (b.finished) return 1;
+        if (a.lap !== b.lap) return b.lap - a.lap;
+        return b.progress - a.progress;
+      });
       playerState.rank = allRacers.findIndex((r) => r.id === playerInfo.id) + 1;
+      
+      // Also update bot ranks
+      allRacers.forEach((racer, index) => {
+        const bot = bots.find(b => b.id === racer.id);
+        if (bot) {
+          bot.rank = index + 1;
+        }
+      });
 
       const currentCamMode = cameraModeRef.current;
       const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(playerState.quaternion);
       const up = new THREE.Vector3(0, 1, 0);
 
-      if (playerState.isFinished && currentCamMode === 4) {
-        cameraPos.copy(track.startPosition).add(new THREE.Vector3(0, 5, -12));
-        cameraTarget.copy(track.startPosition).add(new THREE.Vector3(0, 1, 15));
+      // Update race stage
+      if (raceStage === 'racing' && playerState.isFinished) {
+        setRaceStage('finishing');
+        setStageTimer(10); // 10 seconds wait
+      } else if (raceStage === 'finishing' && stageTimer > 0) {
+        setStageTimer((prev: number) => Math.max(0, prev - delta));
+        if (stageTimer <= 0) {
+          setRaceStage('podium');
+          setStageTimer(20); // 20 seconds podium
+        }
+      } else if (raceStage === 'podium' && stageTimer > 0) {
+        setStageTimer((prev: number) => Math.max(0, prev - delta));
+        if (stageTimer <= 0) {
+          onFinishRace(0); // Trigger exit
+        }
+      }
+
+      // Spectator mode triggered automatically when finished
+      if (playerState.isFinished) {
+        cameraPos.copy(track.startPosition).add(new THREE.Vector3(0, 5, -10));
+        cameraTarget.copy(playerState.position);
       } else if (currentCamMode === 0) {
-        const distBehind = playerState.isBoosting ? 8.2 : 7.2;
-        const heightAbove = 3.2;
+        // 3rd person
+        const distBehind = playerState.isBoosting ? 12.0 : 10.0; 
+        const heightAbove = 4.0;
         cameraPos.copy(playerState.position).addScaledVector(forward, -distBehind).addScaledVector(up, heightAbove);
-        cameraTarget.copy(playerState.position).addScaledVector(forward, 6.0).addScaledVector(up, 1.2);
+        cameraTarget.copy(playerState.position).addScaledVector(forward, 10.0).addScaledVector(up, 1.2);
         const targetFov = playerState.isBoosting ? 76 : 64;
         camera.fov = THREE.MathUtils.damp(camera.fov, targetFov, 6, delta);
         camera.updateProjectionMatrix();
-      } else if (currentCamMode === 1) {
-        cameraPos.copy(playerState.position).addScaledVector(forward, -4.8).addScaledVector(up, 2.0);
-        cameraTarget.copy(playerState.position).addScaledVector(forward, 8.0).addScaledVector(up, 1.0);
-      } else if (currentCamMode === 2) {
-        cameraPos.copy(playerState.position).addScaledVector(forward, 0.4).addScaledVector(up, 0.85);
-        cameraTarget.copy(playerState.position).addScaledVector(forward, 25.0).addScaledVector(up, 0.5);
       } else {
-        cameraPos.copy(playerState.position).addScaledVector(forward, -12.0).addScaledVector(up, 18.0);
-        cameraTarget.copy(playerState.position);
+        // 1st person
+        cameraPos.copy(playerState.position).addScaledVector(up, 0.8);
+        cameraTarget.copy(playerState.position).addScaledVector(forward, 25.0).addScaledVector(up, 0.5);
       }
 
       smoothedCamPos.lerp(cameraPos, 0.14);
@@ -399,7 +522,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         });
       }
 
-      onStateUpdate(playerState);
+      onStateUpdate({ ...playerState });
       renderer.render(scene, camera);
     };
 
@@ -420,6 +543,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   return (
     <div className="relative w-full h-full select-none overflow-hidden bg-black flex items-center justify-center">
       <div ref={mountRef} className="w-full h-full min-h-[400px]" />
+      {raceStage === 'finishing' && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white text-4xl font-bold">
+          Finished! Waiting for others... {Math.ceil(stageTimer)}s
+        </div>
+      )}
+      {raceStage === 'podium' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white">
+          <h1 className="text-6xl font-bold mb-8">Podium</h1>
+          <div className="text-2xl mb-8">Exit in {Math.ceil(stageTimer)}s</div>
+          <button onClick={() => onFinishRace(0)} className="px-6 py-3 bg-blue-600 rounded-lg text-xl hover:bg-blue-700">Leave</button>
+        </div>
+      )}
     </div>
   );
 };

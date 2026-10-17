@@ -42,6 +42,7 @@ interface HUDProps {
     drift: boolean;
     item: boolean;
   }) => void;
+  isDarkMode: boolean;
 }
 
 export const HUD: React.FC<HUDProps> = ({
@@ -57,6 +58,7 @@ export const HUD: React.FC<HUDProps> = ({
   onForfeit,
   onSendQuickChat,
   onTouchInput,
+  isDarkMode,
 }) => {
   const [isDockCollapsed, setIsDockCollapsed] = useState(false);
   const [isMuted, setIsMuted] = useState(sound.isSoundMuted());
@@ -89,7 +91,7 @@ export const HUD: React.FC<HUDProps> = ({
   const isFinished = vehicleState?.isFinished || false;
 
   const gear = speed === 0 ? 'N' : speed < 45 ? '1' : speed < 90 ? '2' : speed < 140 ? '3' : speed < 190 ? '4' : '5';
-  const cameraNames = ['3인칭', '후방', '1인칭', '탑뷰', '결승선 관전'];
+  const cameraNames = ['3인칭', '1인칭'];
 
   const handleCopyLink = () => {
     const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
@@ -117,7 +119,7 @@ export const HUD: React.FC<HUDProps> = ({
     <div className="absolute inset-0 pointer-events-none select-none overflow-hidden flex flex-col justify-between p-3 md:p-6">
       <div className="flex items-start justify-between w-full pointer-events-auto gap-2">
         <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-          <div className="bg-slate-900/90 border border-cyan-500/40 rounded-xl px-3 py-1.5 shadow-lg backdrop-blur-md">
+          <div className={`${isDarkMode ? 'bg-slate-900/90' : 'bg-white'} border ${isDarkMode ? 'border-cyan-500/40' : 'border-cyan-300/40'} rounded-xl px-3 py-1.5 shadow-lg backdrop-blur-md`}>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
               <span className="font-black italic text-cyan-400 tracking-wider text-xs md:text-sm">
@@ -125,14 +127,14 @@ export const HUD: React.FC<HUDProps> = ({
               </span>
             </div>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[10px] text-slate-400">방 코드:</span>
-              <span className="font-mono font-bold text-amber-300 text-xs tracking-wider">{roomId}</span>
+              <span className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>방 코드:</span>
+              <span className="font-mono font-bold text-amber-500 text-xs tracking-wider">{roomId}</span>
               <button
                 onClick={handleCopyLink}
-                className="text-slate-400 hover:text-cyan-300 transition-colors p-0.5"
+                className={`${isDarkMode ? 'text-slate-400 hover:text-cyan-300' : 'text-slate-500 hover:text-cyan-600'} transition-colors p-0.5`}
                 title="링크 복사"
               >
-                {copiedLink ? <Check size={12} className="text-green-400" /> : <Share2 size={12} />}
+                {copiedLink ? <Check size={12} className="text-green-500" /> : <Share2 size={12} />}
               </button>
             </div>
           </div>
@@ -151,10 +153,10 @@ export const HUD: React.FC<HUDProps> = ({
 
           <button
             onClick={() => setShowForfeitModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900/90 hover:bg-rose-950/80 border border-slate-700 hover:border-rose-600 text-slate-300 hover:text-rose-200 text-xs font-bold shadow-lg transition-all active:scale-95"
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl ${isDarkMode ? 'bg-slate-900/90 hover:bg-rose-950/80 border-slate-700 hover:border-rose-600 text-slate-300 hover:text-rose-200' : 'bg-white hover:bg-rose-100 border-slate-300 hover:border-rose-300 text-slate-700 hover:text-rose-700'} text-xs font-bold shadow-lg transition-all active:scale-95`}
             title="포기하기"
           >
-            <LogOut size={13} className="text-rose-400" />
+            <LogOut size={13} className="text-rose-500" />
             <span>포기</span>
           </button>
 
@@ -314,13 +316,13 @@ export const HUD: React.FC<HUDProps> = ({
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3 md:gap-4">
-              <div className="relative flex items-baseline gap-1">
+              <div className="relative flex items-baseline gap-1 bg-black/30 px-3 py-1 rounded-lg backdrop-blur-sm">
                 <span className="font-mono font-black text-3xl md:text-5xl text-white tracking-tighter">
                   {speed}
                 </span>
                 <span className="font-bold text-xs md:text-sm text-cyan-400">KM/H</span>
               </div>
-              <div className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-center">
+              <div className="px-2 py-1 rounded-lg bg-black/30 backdrop-blur-sm border border-slate-700/50 text-center">
                 <div className="text-[9px] font-semibold text-slate-400">GEAR</div>
                 <div className="font-mono font-bold text-amber-400 text-sm md:text-base leading-none mt-0.5">
                   {gear}
@@ -329,17 +331,17 @@ export const HUD: React.FC<HUDProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
-              {currentItem && !isFinished ? (
+              {currentItem ? (
                 <button
                   onClick={onUseItem}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-xs md:text-sm shadow-lg shadow-amber-500/30"
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/80 to-amber-600/80 text-white font-bold text-xs md:text-sm shadow-lg backdrop-blur-sm"
                 >
                   <span className="text-xl">{getItemLabel(currentItem).icon}</span>
-                  <span>{getItemLabel(currentItem).name}</span>
+                  <span>{getItemLabel(currentItem).name} (사용: [F])</span>
                 </button>
               ) : (
-                <div className="text-xs text-slate-500">
-                  {isFinished ? '🏁 완주 완료 (관전 모드)' : '아이템 대기중'}
+                <div className="text-xs text-slate-400 bg-black/30 px-3 py-2 rounded-xl backdrop-blur-sm border border-slate-800">
+                  아이템 없음
                 </div>
               )}
             </div>
@@ -347,19 +349,20 @@ export const HUD: React.FC<HUDProps> = ({
             <div className="flex items-center gap-1.5 md:gap-2">
               <button
                 onClick={onCycleCamera}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-xs transition-colors"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-black/40 hover:bg-black/60 border border-slate-700/50 text-slate-200 text-xs backdrop-blur-sm transition-colors"
                 title="시점 변경: [C]"
               >
                 <Camera size={14} className="text-cyan-400" />
                 <span className="hidden sm:inline">{cameraNames[cameraMode]}</span>
               </button>
+              
               <button
                 onClick={() => {
                   const muted = sound.toggleMute();
                   setIsMuted(muted);
                 }}
                 className={`p-2 rounded-lg border transition-colors ${
-                  isMuted ? 'bg-rose-950/40 border-rose-800 text-rose-400' : 'bg-slate-900 border-slate-700 text-slate-300'
+                  isMuted ? 'bg-rose-950/40 border-rose-800 text-rose-400' : 'bg-black/40 border-slate-700 text-slate-200'
                 }`}
                 title="음소거"
               >
@@ -371,12 +374,19 @@ export const HUD: React.FC<HUDProps> = ({
                   setIsMusicMuted(m);
                 }}
                 className={`p-2 rounded-lg border transition-colors ${
-                  isMusicMuted ? 'bg-slate-900 border-slate-800 text-slate-600' : 'bg-cyan-950/40 border-cyan-800 text-cyan-300'
+                  isMusicMuted ? 'bg-black/40 border-slate-800 text-slate-500' : 'bg-cyan-950/40 border-cyan-800 text-cyan-300'
                 }`}
                 title="BGM"
               >
                 <Music size={14} />
               </button>
+
+              {/* Graphics Quality Slider - Range 20 to 100 */}
+              <div className="flex flex-col items-center gap-1 bg-black/40 px-2 py-1 rounded-lg backdrop-blur-sm">
+                <span className="text-[9px] text-slate-400">품질</span>
+                <input type="range" min="20" max="100" className="w-16 accent-cyan-500" defaultValue="100" />
+              </div>
+
               {!isFinished && (
                 <button
                   onClick={onResetCar}

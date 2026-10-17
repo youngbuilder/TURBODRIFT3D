@@ -84,8 +84,8 @@ export class PhysicsEngine {
   ): VehicleState {
     const startQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), startDir);
     const sideDir = new THREE.Vector3(0, 1, 0).cross(startDir).normalize();
-    const sideOffset = gridIndex % 2 === 0 ? -3.5 : 3.5;
-    const backOffset = Math.floor(gridIndex / 2) * -7.0;
+    const sideOffset = gridIndex % 2 === 0 ? -5.5 : 5.5;
+    const backOffset = Math.floor(gridIndex / 2) * -9.0;
     const initialPos = startPos.clone()
       .addScaledVector(sideDir, sideOffset)
       .addScaledVector(startDir, backOffset);
@@ -203,22 +203,23 @@ export class PhysicsEngine {
         state.driftBoostLevel = 1;
       }
 
-      const targetDriftAngle = targetSteer * 0.44;
-      state.driftAngle = THREE.MathUtils.damp(state.driftAngle, targetDriftAngle, 10, delta);
+      // Arcade-style drift: higher drift angle and reduced drag for better sliding
+      const targetDriftAngle = targetSteer * 0.75;
+      state.driftAngle = THREE.MathUtils.damp(state.driftAngle, targetDriftAngle, 5, delta);
     } else {
       if (state.isDrifting) {
         if (state.driftBoostLevel > 0) {
           const boostDurations = [0, 1.0, 1.8, 2.6];
           state.isBoosting = true;
           state.boostTimer = boostDurations[state.driftBoostLevel];
-          state.speedKmh = Math.min(boostMaxSpeed, state.speedKmh + state.driftBoostLevel * 25 * cfg.driftPower);
+          state.speedKmh = Math.min(boostMaxSpeed, state.speedKmh + state.driftBoostLevel * 30 * cfg.driftPower);
           sound.playBoost();
         }
         state.isDrifting = false;
         state.driftChargeTime = 0;
         state.driftBoostLevel = 0;
       }
-      state.driftAngle = THREE.MathUtils.damp(state.driftAngle, 0, 14, delta);
+      state.driftAngle = THREE.MathUtils.damp(state.driftAngle, 0, 8, delta);
     }
 
     const trackFriction = track.frictionMultiplier || 1.0;
@@ -376,8 +377,8 @@ export class PhysicsEngine {
       const startP = track.curve.getPointAt(0);
       const startT = track.curve.getTangentAt(0);
       const startB = new THREE.Vector3(0, 1, 0).cross(startT).normalize();
-      const sideOffset = gridIndex % 2 === 0 ? -3.5 : 3.5;
-      const backOffset = Math.floor(gridIndex / 2) * -7.0;
+      const sideOffset = gridIndex % 2 === 0 ? -5.5 : 5.5;
+      const backOffset = Math.floor(gridIndex / 2) * -9.0;
 
       const pos = startP.clone()
         .addScaledVector(startB, sideOffset)
@@ -403,7 +404,7 @@ export class PhysicsEngine {
         position: pos,
         quaternion: quat,
         trackT: 0,
-        lateralOffset: sideOffset * 0.65,
+        lateralOffset: sideOffset * 0.8,
         speedKmh: 0,
         targetSpeed: baseSpeed + (Math.random() - 0.5) * 15,
         accelRate: accelFactor,
@@ -426,7 +427,22 @@ export class PhysicsEngine {
   }
 
   public static updateBots(bots: BotRacer[], delta: number, track: TrackData, totalLaps: number) {
-    const totalLen = track.totalLength;
+    // Anti-overlap separation between bots
+    for (let i = 0; i < bots.length; i++) {
+      for (let j = i + 1; j < bots.length; j++) {
+        const b1 = bots[i];
+        const b2 = bots[j];
+        const dist = b1.position.distanceTo(b2.position);
+        if (dist < 5.0) {
+          const pushDir = b1.lateralOffset > b2.lateralOffset ? 1 : -1;
+          b1.lateralOffset += pushDir * 0.8 * delta;
+          b2.lateralOffset -= pushDir * 0.8 * delta;
+          b1.lateralOffset = THREE.MathUtils.clamp(b1.lateralOffset, -18, 18);
+          b2.lateralOffset = THREE.MathUtils.clamp(b2.lateralOffset, -18, 18);
+        }
+      }
+    }
+
     bots.forEach((bot) => {
       if (bot.isFinished) return;
 
@@ -446,16 +462,21 @@ export class PhysicsEngine {
       bot.speedKmh = THREE.MathUtils.damp(bot.speedKmh, maxSpd, 2.5, delta);
 
       const moveMeters = (bot.speedKmh / 3.6) * delta;
-      const deltaT = moveMeters / totalLen;
+      
+      const deltaT = moveMeters / track.totalLength;
       bot.trackT += deltaT;
+      if (bot.trackT >= 1.0) bot.trackT -= 1.0;
 
-      if (bot.trackT >= 1.0) {
-        bot.trackT -= 1.0;
-        bot.lap += 1;
-        if (bot.lap > totalLaps) {
-          bot.isFinished = true;
-          bot.finishTime = Date.now();
+      const cpIndex = Math.floor(bot.trackT * track.checkpoints.length);
+      if (cpIndex !== bot.checkpoint) {
+        if (cpIndex === 0 && bot.checkpoint === track.checkpoints.length - 1) {
+          bot.lap += 1;
+          if (bot.lap > totalLaps) {
+            bot.isFinished = true;
+            bot.finishTime = Date.now();
+          }
         }
+        bot.checkpoint = cpIndex;
       }
 
       const splinePt = track.curve.getPointAt(bot.trackT);

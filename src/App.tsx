@@ -32,7 +32,6 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [cameraMode, setCameraMode] = useState<number>(0);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
-  const [graphicQuality, setGraphicQuality] = useState<number>(100);
   const [finishCountdownNotice, setFinishCountdownNotice] = useState<string | null>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
@@ -264,7 +263,7 @@ export default function App() {
         })
       );
     } else {
-      handleQuickStart('city-downtown', customization, name);
+      handleQuickStart('grand-prix-circuit', customization, name);
     }
   };
 
@@ -409,11 +408,12 @@ export default function App() {
     setRoomState((prev) => (prev ? { ...prev, state: 'lobby' } : null));
   };
 
+  // Automatically return to lobby 10 seconds after podium is shown
   useEffect(() => {
     if (roomState?.state === 'finished') {
       const timer = setTimeout(() => {
         handleReturnToLobby();
-      }, 10000);
+      }, 10000); // 10 seconds podium display before returning to waiting room
       return () => clearTimeout(timer);
     }
   }, [roomState?.state]);
@@ -426,7 +426,7 @@ export default function App() {
   };
 
   const handleCycleCamera = () => {
-    setCameraMode((prev) => (prev + 1) % 5);
+    setCameraMode((prev) => (prev + 1) % 2); 
   };
 
   const handleRefreshRoomList = () => {
@@ -465,8 +465,6 @@ export default function App() {
           onSendChat={handleSendQuickChat}
           isDarkMode={isDarkMode}
           onToggleDarkMode={toggleDarkMode}
-          graphicQuality={graphicQuality}
-          setGraphicQuality={setGraphicQuality}
         />
       )}
 
@@ -489,7 +487,6 @@ export default function App() {
             onCycleCamera={handleCycleCamera}
             touchControls={touchInputs}
             isRacing={roomState.state === 'racing'}
-            quality={graphicQuality}
           />
           <HUD
             vehicleState={vehicleState}
@@ -506,6 +503,7 @@ export default function App() {
             onForfeit={handleLeaveRoom}
             onSendQuickChat={handleSendQuickChat}
             onTouchInput={setTouchInputs}
+            isDarkMode={isDarkMode}
           />
         </>
       )}
@@ -537,6 +535,7 @@ export default function App() {
           isHost={currentPlayer.isHost}
           onReturnToLobby={handleReturnToLobby}
           onRematch={handleStartRace}
+          isDarkMode={isDarkMode}
         />
       )}
 

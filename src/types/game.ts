@@ -27,39 +27,39 @@ export const VEHICLE_CONFIGS: Record<CarModelType, VehicleStats> = {
     id: 'sport',
     name: '스포츠카',
     nameEn: 'Sports Car',
-    category: '고속 드리프트형',
-    description: '최고 속도와 칼바람 드리프트가 특기인 머신',
+    category: '최고 속도형',
+    description: '압도적인 최고 속도를 자랑하는 머신',
     maxSpeed: 210,
     acceleration: 90,
-    handling: 0.55,
-    driftPower: 1.3,
-    offroadGrip: 0.5,
+    handling: 0.50,
+    driftPower: 1.2,
+    offroadGrip: 0.4,
     weight: 1.2,
   },
   bike: {
     id: 'bike',
     name: '오토바이',
     nameEn: 'Superbike',
-    category: '날렵한 코너링',
-    description: '좁은 코너를 파고드는 극상의 코너링 성능',
-    maxSpeed: 195,
-    acceleration: 105,
-    handling: 0.80,
+    category: '최고 핸들링형',
+    description: '코너링 성능이 가장 뛰어난 날렵한 머신',
+    maxSpeed: 150,
+    acceleration: 95,
+    handling: 0.95,
     driftPower: 1.4,
-    offroadGrip: 0.45,
+    offroadGrip: 0.4,
     weight: 0.7,
   },
   sedan: {
     id: 'sedan',
     name: '세단',
     nameEn: 'Sedan',
-    category: '안정 주행형',
-    description: '균형 잡힌 핸들링과 안정적인 승차감',
-    maxSpeed: 180,
-    acceleration: 85,
-    handling: 0.65,
-    driftPower: 1.15,
-    offroadGrip: 0.65,
+    category: '균형 잡힌 주행',
+    description: '모든 상황에서 안정적인 밸런스형 차량',
+    maxSpeed: 170,
+    acceleration: 80,
+    handling: 0.70,
+    driftPower: 1.0,
+    offroadGrip: 0.6,
     weight: 1.0,
   },
   suv: {
@@ -67,12 +67,12 @@ export const VEHICLE_CONFIGS: Record<CarModelType, VehicleStats> = {
     name: 'SUV',
     nameEn: 'SUV',
     category: '묵직한 파워형',
-    description: '충돌에 강하고 험지 주파력이 뛰어난 대형 차량',
-    maxSpeed: 172,
-    acceleration: 80,
-    handling: 0.65,
+    description: '안정적이고 튼튼한 대형 차량',
+    maxSpeed: 190,
+    acceleration: 85,
+    handling: 0.60,
     driftPower: 1.1,
-    offroadGrip: 0.85,
+    offroadGrip: 0.8,
     weight: 1.6,
   },
 };
@@ -103,12 +103,10 @@ export interface PlayerInfo {
 }
 
 export type TrackId =
-  | 'city-downtown'
-  | 'sunset-desert'
-  | 'frost-ice'
-  | 'jungle-ruins'
-  | 'future-cyber'
-  | 'aurora-space';
+  | 'grand-prix-circuit'
+  | 'night-street-stadium'
+  | 'mountain-tech-circuit'
+  | 'city-downtown';
 
 export interface TrackMetadata {
   id: TrackId;

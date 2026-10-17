@@ -73,9 +73,12 @@ const rooms = new Map<string, Room>();
 function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
-  for (let i = 0; i < 4; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
+  do {
+    code = '';
+    for (let i = 0; i < 4; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+  } while (rooms.has(code));
   return code;
 }
 
@@ -170,7 +173,7 @@ wss.on('connection', (ws: WebSocket) => {
             id: roomId,
             name: msg.roomName || `${(msg.name || 'Racer').trim()}'s Room`,
             hostId: '',
-            trackId: msg.trackId || 'city-downtown',
+            trackId: msg.trackId || 'grand-prix-circuit',
             laps: msg.laps || 2,
             gameMode: msg.gameMode || 'solo',
             aiDifficulty: msg.aiDifficulty || 'medium',
