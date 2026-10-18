@@ -5,6 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { sound } from './audio';
 import { buildProceduralCar, updateCarVisuals, CarVisuals } from './carModel';
@@ -25,6 +26,7 @@ interface GameCanvasProps {
   onSendCarUpdate: (update: any) => void;
   onFinishRace: (finishTime: number) => void;
   onItemUsed: (type: string, position: THREE.Vector3) => void;
+  onBotsUpdate?: (bots: BotRacer[]) => void;
   cameraMode: number;
   onCycleCamera: () => void;
   touchControls?: {
@@ -36,6 +38,8 @@ interface GameCanvasProps {
     item: boolean;
   };
   isRacing?: boolean;
+  graphicsQuality?: number;
+  resetCarRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -51,19 +55,46 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   onSendCarUpdate,
   onFinishRace,
   onItemUsed,
+  onBotsUpdate,
   cameraMode,
   onCycleCamera,
   touchControls,
   isRacing = true,
+  graphicsQuality = 100,
+  resetCarRef,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const animFrameRef = useRef<number | null>(null);
   const playerStateRef = useRef<VehicleState | null>(null);
+  const trackRef = useRef<any>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const labelRendererRef = useRef<CSS2DRenderer | null>(null);
+
+  useEffect(() => {
+    if (rendererRef.current) {
+      const r = rendererRef.current;
+      r.setPixelRatio(Math.max(0.2, Math.min(window.devicePixelRatio, (graphicsQuality / 100) * 2)));
+      r.shadowMap.enabled = graphicsQuality > 20;
+    }
+  }, [graphicsQuality]);
+
+  useEffect(() => {
+    if (resetCarRef) {
+      resetCarRef.current = () => {
+        if (playerStateRef.current && trackRef.current) {
+          PhysicsEngine.resetToLastCheckpoint(playerStateRef.current, trackRef.current);
+        }
+      };
+    }
+  }, [resetCarRef]);
   const cameraModeRef = useRef<number>(cameraMode);
   cameraModeRef.current = cameraMode;
   const isRacingRef = useRef<boolean>(isRacing);
   isRacingRef.current = isRacing;
   const [raceStage, setRaceStage] = useState<'racing' | 'finishing' | 'podium' | 'finished'>('racing');
+  const raceStageRef = useRef<'racing' | 'finishing' | 'podium' | 'finished'>('racing');
+  raceStageRef.current = raceStage;
+  const stageTimerRef = useRef<number>(0);
   const [raceEndTime, setRaceEndTime] = useState<number | null>(null);
   const [stageTimer, setStageTimer] = useState<number>(0);
 
@@ -103,9 +134,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         onCycleCamera();
       }
       if (e.key === 'r' || e.key === 'R') {
-        if (playerStateRef.current) {
-          playerStateRef.current.speedKmh = 0;
-          playerStateRef.current.isSpinning = false;
+        if (playerStateRef.current && trackRef.current) {
+          PhysicsEngine.resetToLastCheckpoint(playerStateRef.current, trackRef.current);
         }
       }
     };
@@ -161,19 +191,29 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     const scene = new THREE.Scene();
     const track = buildTrack(trackId);
+    trackRef.current = track;
     scene.background = new THREE.Color(track.skyColor);
     scene.fog = new THREE.FogExp2(track.fogColor, 0.0018);
 
     const camera = new THREE.PerspectiveCamera(65, width / height, 0.2, 900);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    const renderer = new THREE.WebGLRenderer({ antialias: graphicsQuality > 30, powerPreference: 'high-performance' });
+    rendererRef.current = renderer;
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const pixelRatio = Math.max(0.2, Math.min(window.devicePixelRatio, (graphicsQuality / 100) * 2));
+    renderer.setPixelRatio(pixelRatio);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.25;
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = graphicsQuality > 20;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(width, height);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    container.appendChild(labelRenderer.domElement);
+    labelRendererRef.current = labelRenderer;
 
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -221,9 +261,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     playerVisuals.group.position.copy(playerState.position);
     playerVisuals.group.quaternion.copy(playerState.quaternion);
 
-    const peerVisualsMap = new Map<string, CarVisuals>();
+    const createCarLabel = (name: string, isBot: boolean) => {
+      const div = document.createElement('div');
+      div.className = `text-[10px] font-bold px-1.5 py-0.5 rounded shadow ${isBot ? 'bg-rose-950/80 text-rose-300' : 'bg-cyan-950/80 text-cyan-300'}`;
+      div.textContent = name;
+      const label = new CSS2DObject(div);
+      label.position.set(0, 1.2, 0);
+      return label;
+    };
+    const playerLabel = createCarLabel(playerInfo.name, false);
+    playerVisuals.group.add(playerLabel);
+
+    const peerVisualsMap = new Map<string, { visuals: CarVisuals, label: CSS2DObject }>();
     const bots = PhysicsEngine.initBots(aiBotsCount, track, aiDifficulty, gameMode);
-    const botVisualsMap = new Map<string, CarVisuals>();
+    const botVisualsMap = new Map<string, { visuals: CarVisuals, label: CSS2DObject }>();
 
     bots.forEach((bot) => {
       const botCustom: CarCustomization = {
@@ -236,7 +287,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       bVis.group.position.copy(bot.position);
       bVis.group.quaternion.copy(bot.quaternion);
       scene.add(bVis.group);
-      botVisualsMap.set(bot.id, bVis);
+      const label = createCarLabel(bot.name, true);
+      bVis.group.add(label);
+      botVisualsMap.set(bot.id, { visuals: bVis, label });
     });
 
     const particleCount = 200;
@@ -332,6 +385,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       if (isRacingRef.current) {
         PhysicsEngine.updatePlayer(playerState, inputRef.current, delta, track, totalLaps);
+        PhysicsEngine.updateBots(bots, delta, track, totalLaps);
+        if (onBotsUpdate) {
+          onBotsUpdate(bots);
+        }
       }
 
       activeTrapMeshes.forEach((trap, idx) => {
@@ -392,44 +449,48 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       if (isRacingRef.current) {
         PhysicsEngine.updateBots(bots, delta, track, totalLaps);
+        if (onBotsUpdate) onBotsUpdate(bots);
       }
-
+      
       bots.forEach((bot) => {
-        const bVis = botVisualsMap.get(bot.id);
-        if (bVis) {
-          bVis.group.position.copy(bot.position);
-          bVis.group.quaternion.copy(bot.quaternion);
-          updateCarVisuals(bVis, 0, bot.wheelRotation, bot.isBoosting, false);
+        const b = botVisualsMap.get(bot.id);
+        if (b) {
+          b.visuals.group.position.copy(bot.position);
+          b.visuals.group.quaternion.copy(bot.quaternion);
+          updateCarVisuals(b.visuals, 0, bot.wheelRotation, bot.isBoosting, false);
         }
       });
 
       peerPlayers.forEach((peer, peerId) => {
-        let pVis = peerVisualsMap.get(peerId);
-        if (!pVis) {
+        let p = peerVisualsMap.get(peerId);
+        if (!p) {
           const peerCustom: CarCustomization = {
             model: peer.carModel,
             color: peer.carColor,
             accentColor: peer.accentColor,
             neonColor: peer.neonColor,
           };
-          pVis = buildProceduralCar(peerCustom);
-          scene.add(pVis.group);
-          peerVisualsMap.set(peerId, pVis);
+          const visuals = buildProceduralCar(peerCustom);
+          scene.add(visuals.group);
+          const label = createCarLabel(peer.name, false);
+          visuals.group.add(label);
+          p = { visuals, label };
+          peerVisualsMap.set(peerId, p);
         }
         const peerData = peerStatesRef.current.get(peerId);
         if (peerData) {
           const targetPos = new THREE.Vector3(peerData.x, peerData.y, peerData.z);
-          pVis.group.position.lerp(targetPos, 0.35);
+          p.visuals.group.position.lerp(targetPos, 0.35);
           const targetRot = new THREE.Euler(peerData.rotX, peerData.rotY, peerData.rotZ);
           const targetQuat = new THREE.Quaternion().setFromEuler(targetRot);
-          pVis.group.quaternion.slerp(targetQuat, 0.35);
-          updateCarVisuals(pVis, peerData.steer, 0, peerData.boosting, peerData.drifting);
+          p.visuals.group.quaternion.slerp(targetQuat, 0.35);
+          updateCarVisuals(p.visuals, peerData.steer, 0, peerData.boosting, peerData.drifting);
         }
       });
 
-      peerVisualsMap.forEach((vis, id) => {
+      peerVisualsMap.forEach((p, id) => {
         if (!peerPlayers.has(id)) {
-          scene.remove(vis.group);
+          scene.remove(p.visuals.group);
           peerVisualsMap.delete(id);
         }
       });
@@ -462,27 +523,43 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const up = new THREE.Vector3(0, 1, 0);
 
       // Update race stage
-      if (raceStage === 'racing' && playerState.isFinished) {
+      if (raceStageRef.current === 'racing' && playerState.isFinished) {
         setRaceStage('finishing');
-        setStageTimer(10); // 10 seconds wait
-      } else if (raceStage === 'finishing' && stageTimer > 0) {
-        setStageTimer((prev: number) => Math.max(0, prev - delta));
-        if (stageTimer <= 0) {
+        raceStageRef.current = 'finishing';
+        stageTimerRef.current = 6; // 6 seconds finishing wait
+        setStageTimer(6);
+      } else if (raceStageRef.current === 'finishing' && stageTimerRef.current > 0) {
+        stageTimerRef.current = Math.max(0, stageTimerRef.current - delta);
+        setStageTimer(Math.ceil(stageTimerRef.current));
+        if (stageTimerRef.current <= 0) {
           setRaceStage('podium');
-          setStageTimer(20); // 20 seconds podium
+          raceStageRef.current = 'podium';
+          stageTimerRef.current = 15; // 15 seconds podium display
+          setStageTimer(15);
         }
-      } else if (raceStage === 'podium' && stageTimer > 0) {
-        setStageTimer((prev: number) => Math.max(0, prev - delta));
-        if (stageTimer <= 0) {
+      } else if (raceStageRef.current === 'podium' && stageTimerRef.current > 0) {
+        stageTimerRef.current = Math.max(0, stageTimerRef.current - delta);
+        setStageTimer(Math.ceil(stageTimerRef.current));
+        if (stageTimerRef.current <= 0) {
           onFinishRace(0); // Trigger exit
         }
       }
 
       // Spectator mode triggered automatically when finished
       if (playerState.isFinished) {
+        onFinishRace(playerState.finishTime);
         cameraPos.copy(track.startPosition).add(new THREE.Vector3(0, 5, -10));
         cameraTarget.copy(playerState.position);
-      } else if (currentCamMode === 0) {
+        smoothedCamPos.copy(cameraPos);
+        smoothedCamTarget.copy(cameraTarget);
+      } else if (currentCamMode === 1) {
+        // 1st person: rigidly fixed to car with zero lag
+        const hoodPos = playerState.position.clone().addScaledVector(forward, 0.3).addScaledVector(up, 0.85);
+        cameraPos.copy(hoodPos);
+        cameraTarget.copy(hoodPos).addScaledVector(forward, 25.0).addScaledVector(up, 0.4);
+        smoothedCamPos.copy(cameraPos);
+        smoothedCamTarget.copy(cameraTarget);
+      } else {
         // 3rd person
         const distBehind = playerState.isBoosting ? 12.0 : 10.0; 
         const heightAbove = 4.0;
@@ -491,14 +568,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         const targetFov = playerState.isBoosting ? 76 : 64;
         camera.fov = THREE.MathUtils.damp(camera.fov, targetFov, 6, delta);
         camera.updateProjectionMatrix();
-      } else {
-        // 1st person
-        cameraPos.copy(playerState.position).addScaledVector(up, 0.8);
-        cameraTarget.copy(playerState.position).addScaledVector(forward, 25.0).addScaledVector(up, 0.5);
+
+        smoothedCamPos.lerp(cameraPos, 0.25);
+        smoothedCamTarget.lerp(cameraTarget, 0.3);
       }
 
-      smoothedCamPos.lerp(cameraPos, 0.14);
-      smoothedCamTarget.lerp(cameraTarget, 0.18);
       camera.position.copy(smoothedCamPos);
       camera.lookAt(smoothedCamTarget);
 
@@ -524,6 +598,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       onStateUpdate({ ...playerState });
       renderer.render(scene, camera);
+      if (labelRendererRef.current) {
+        labelRendererRef.current.render(scene, camera);
+      }
     };
 
     animate();
@@ -532,6 +609,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       ro.disconnect();
       renderer.dispose();
+      if (labelRendererRef.current && container.contains(labelRendererRef.current.domElement)) {
+        container.removeChild(labelRendererRef.current.domElement);
+      }
       sound.updateEngine(0, false);
       sound.updateDrift(false);
       if (container.contains(renderer.domElement)) {

@@ -62,6 +62,8 @@ interface LobbyProps {
   onSendChat: (emoji: string, text: string) => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
+  graphicsQuality: number;
+  onGraphicsQualityChange: (q: number) => void;
 }
 
 const PRESET_COLORS = [
@@ -90,6 +92,8 @@ export const Lobby: React.FC<LobbyProps> = ({
   onRefreshRoomList,
   isDarkMode,
   onToggleDarkMode,
+  graphicsQuality,
+  onGraphicsQualityChange,
 }) => {
   const [nickname, setNickname] = useState(() => '레이서_' + Math.floor(100 + Math.random() * 900));
   const [selectedTrack, setSelectedTrack] = useState<TrackId>('city-downtown');
@@ -190,9 +194,17 @@ export const Lobby: React.FC<LobbyProps> = ({
               <span>{isDarkMode ? '🌞 라이트모드' : '🌙 다크모드'}</span>
             </button>
             {/* Graphics Slider in Lobby */}
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="text-[9px] text-slate-400">그래픽 품질</span>
-              <input type="range" min="20" max="100" className="w-16 accent-cyan-500" defaultValue="100" />
+            <div className="flex flex-col items-center gap-0.5 bg-slate-900/90 border border-slate-700 px-3 py-1.5 rounded-2xl backdrop-blur-md">
+              <span className="text-[9px] text-slate-400">그래픽 품질: {graphicsQuality}%</span>
+              <input
+                type="range"
+                min="10"
+                max="100"
+                step="5"
+                value={graphicsQuality}
+                onChange={(e) => onGraphicsQualityChange(Number(e.target.value))}
+                className="w-20 accent-cyan-500 cursor-pointer"
+              />
             </div>
             <div className={`flex items-center gap-2 ${isDarkMode ? 'bg-slate-900/95 border-slate-700/60' : 'bg-white border-slate-300 shadow-md'} border rounded-2xl px-4 py-2 backdrop-blur-md`}>
               <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600'} font-semibold`}>닉네임:</span>
@@ -257,17 +269,22 @@ export const Lobby: React.FC<LobbyProps> = ({
                 <Palette size={13} className="text-cyan-400" /> 차량 색상
               </span>
               <div className="flex gap-1.5">
-                {PRESET_COLORS.slice(0, 6).map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => handleColorChange('color', c)}
-                    className={`w-5 h-5 rounded-full border ${
-                      customization.color === c ? 'border-white scale-110 shadow-sm' : 'border-transparent'
-                    }`}
-                    style={{ backgroundColor: c }}
-                  />
-                ))}
+                {PRESET_COLORS.slice(0, 6).map((c) => {
+                  const isTaken = roomState?.players.some(p => p.carColor === c && p.id !== currentPlayer?.id);
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      disabled={isTaken}
+                      onClick={() => handleColorChange('color', c)}
+                      className={`w-5 h-5 rounded-full border ${
+                        customization.color === c ? 'border-white scale-110 shadow-sm' : 'border-transparent'
+                      } ${isTaken ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
+                      style={{ backgroundColor: c }}
+                      title={isTaken ? '이미 선택된 색상입니다' : ''}
+                    />
+                  );
+                })}
               </div>
             </div>
           </div>

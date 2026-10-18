@@ -120,6 +120,20 @@ export class PhysicsEngine {
     };
   }
 
+  public static resetToLastCheckpoint(state: VehicleState, track: TrackData) {
+    const cpIndex = state.currentCheckpoint || 0;
+    const cp = track.checkpoints[cpIndex] || track.checkpoints[0];
+    if (cp) {
+      state.position.copy(cp.position).add(new THREE.Vector3(0, 0.4, 0));
+      state.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), cp.tangent);
+    }
+    state.speedKmh = 0;
+    state.isSpinning = false;
+    state.isBoosting = false;
+    state.driftChargeTime = 0;
+    state.driftBoostLevel = 0;
+  }
+
   public static updatePlayer(
     state: VehicleState,
     input: VehicleInput,
@@ -164,7 +178,7 @@ export class PhysicsEngine {
     const baseMaxSpeed = cfg.maxSpeed;
     const boostMaxSpeed = cfg.maxSpeed + 55;
     const maxSpeed = state.isBoosting ? boostMaxSpeed : baseMaxSpeed;
-    const accelRate = state.isBoosting ? cfg.acceleration * 1.5 : cfg.acceleration;
+    const accelRate = (state.isBoosting ? cfg.acceleration * 2.0 : cfg.acceleration) * 1.6;
     const brakeRate = 180;
     const dragRate = 35;
 
@@ -188,38 +202,38 @@ export class PhysicsEngine {
     const steerResponsiveness = 15 * (cfg.handling / 0.5);
     state.steerAngle = THREE.MathUtils.damp(state.steerAngle, targetSteer * cfg.handling * 1.5, steerResponsiveness, delta);
 
-    const canDrift = Math.abs(state.speedKmh) > 35 && Math.abs(targetSteer) > 0.1;
+    const canDrift = Math.abs(state.speedKmh) > 25 && (input.drift || Math.abs(targetSteer) > 0.1);
     if (input.drift && canDrift) {
       if (!state.isDrifting) {
         state.isDrifting = true;
-        state.driftChargeTime = 0;
+        state.driftChargeTime = 0.4;
       }
-      state.driftChargeTime += delta * cfg.driftPower;
-      if (state.driftChargeTime >= 2.4) {
+      // KartRider-style fast charge with wiggling / counter-steering
+      state.driftChargeTime += delta * cfg.driftPower * 3.5;
+      if (state.driftChargeTime >= 2.0) {
         state.driftBoostLevel = 3;
-      } else if (state.driftChargeTime >= 1.4) {
+      } else if (state.driftChargeTime >= 1.1) {
         state.driftBoostLevel = 2;
-      } else if (state.driftChargeTime >= 0.6) {
+      } else if (state.driftChargeTime >= 0.4) {
         state.driftBoostLevel = 1;
       }
 
-      // Arcade-style drift: higher drift angle and reduced drag for better sliding
-      const targetDriftAngle = targetSteer * 0.75;
-      state.driftAngle = THREE.MathUtils.damp(state.driftAngle, targetDriftAngle, 5, delta);
+      const targetDriftAngle = targetSteer * 0.85;
+      state.driftAngle = THREE.MathUtils.damp(state.driftAngle, targetDriftAngle, 6, delta);
     } else {
       if (state.isDrifting) {
         if (state.driftBoostLevel > 0) {
-          const boostDurations = [0, 1.0, 1.8, 2.6];
+          const boostDurations = [0, 1.2, 2.0, 3.2];
           state.isBoosting = true;
           state.boostTimer = boostDurations[state.driftBoostLevel];
-          state.speedKmh = Math.min(boostMaxSpeed, state.speedKmh + state.driftBoostLevel * 30 * cfg.driftPower);
+          state.speedKmh = Math.min(boostMaxSpeed, state.speedKmh + state.driftBoostLevel * 35 * cfg.driftPower);
           sound.playBoost();
         }
         state.isDrifting = false;
         state.driftChargeTime = 0;
         state.driftBoostLevel = 0;
       }
-      state.driftAngle = THREE.MathUtils.damp(state.driftAngle, 0, 8, delta);
+      state.driftAngle = THREE.MathUtils.damp(state.driftAngle, 0, 10, delta);
     }
 
     const trackFriction = track.frictionMultiplier || 1.0;
@@ -356,24 +370,22 @@ export class PhysicsEngine {
     difficulty: AIDifficulty = 'medium',
     gameMode: string = 'solo'
   ): BotRacer[] {
-    const botNames = [
-      '스피드스터', '블레이드', '템페스트', '썬더', '볼트',
-      '제트', '레이서X', '나이트', '폭풍', '제이슨'
-    ];
     const botColors = [
       '#f59e0b', '#10b981', '#ec4899', '#8b5cf6', '#3b82f6',
       '#14b8a6', '#f43f5e', '#a855f7', '#eab308', '#06b6d4'
     ];
     const botModels: CarModelType[] = ['sport', 'bike', 'sedan', 'suv'];
 
-    const baseSpeed = difficulty === 'easy' ? 100 : difficulty === 'medium' ? 128 : 155;
-    const accelFactor = difficulty === 'easy' ? 40 : difficulty === 'medium' ? 60 : 75;
+    const baseSpeed = difficulty === 'easy' ? 80 : difficulty === 'medium' ? 100 : 118;
+    const accelFactor = difficulty === 'easy' ? 35 : difficulty === 'medium' ? 50 : 65;
 
     const bots: BotRacer[] = [];
     const botCount = Math.min(10, Math.max(0, count));
 
     for (let i = 0; i < botCount; i++) {
       const gridIndex = i + 1;
+      const randNum = Math.floor(100 + Math.random() * 900);
+      const botName = `AI-${randNum}`;
       const startP = track.curve.getPointAt(0);
       const startT = track.curve.getTangentAt(0);
       const startB = new THREE.Vector3(0, 1, 0).cross(startT).normalize();
@@ -395,7 +407,7 @@ export class PhysicsEngine {
 
       bots.push({
         id: `bot_${i}`,
-        name: botNames[i % botNames.length],
+        name: botName,
         carModel: model,
         carColor: botColors[i % botColors.length],
         accentColor: '#ffffff',

@@ -6,7 +6,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { sound } from './game/audio';
 import { GameCanvas } from './game/GameCanvas';
-import { VehicleState } from './game/physics';
+import { BotRacer, VehicleState } from './game/physics';
 import { HUD } from './components/HUD';
 import { Lobby } from './components/Lobby';
 import { Podium } from './components/Podium';
@@ -27,15 +27,18 @@ export default function App() {
   const [currentPlayer, setCurrentPlayer] = useState<PlayerInfo | null>(null);
   const [roomList, setRoomList] = useState<RoomSummary[]>([]);
   const [vehicleState, setVehicleState] = useState<VehicleState | null>(null);
+  const [bots, setBots] = useState<BotRacer[]>([]);
   const [raceResults, setRaceResults] = useState<PlayerInfo[]>([]);
   const [countdownText, setCountdownText] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [cameraMode, setCameraMode] = useState<number>(0);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [finishCountdownNotice, setFinishCountdownNotice] = useState<string | null>(null);
+  const [graphicsQuality, setGraphicsQuality] = useState<number>(100);
 
   const socketRef = useRef<WebSocket | null>(null);
   const peerStatesRef = useRef<Map<string, PeerCarState>>(new Map());
+  const resetCarRef = useRef<(() => void) | null>(null);
 
   const [touchInputs, setTouchInputs] = useState({
     forward: false,
@@ -199,7 +202,7 @@ export default function App() {
     };
 
     const quickRoom: RoomState = {
-      id: 'SOLO',
+      id: Math.random().toString(36).substring(2, 7).toUpperCase(),
       name: '싱글 연습 주행',
       hostId: myId,
       trackId,
@@ -419,7 +422,9 @@ export default function App() {
   }, [roomState?.state]);
 
   const handleResetCar = () => {
-    if (vehicleState) {
+    if (resetCarRef.current) {
+      resetCarRef.current();
+    } else if (vehicleState) {
       vehicleState.speedKmh = 0;
       vehicleState.isSpinning = false;
     }
@@ -465,6 +470,8 @@ export default function App() {
           onSendChat={handleSendQuickChat}
           isDarkMode={isDarkMode}
           onToggleDarkMode={toggleDarkMode}
+          graphicsQuality={graphicsQuality}
+          onGraphicsQualityChange={setGraphicsQuality}
         />
       )}
 
@@ -487,6 +494,9 @@ export default function App() {
             onCycleCamera={handleCycleCamera}
             touchControls={touchInputs}
             isRacing={roomState.state === 'racing'}
+            graphicsQuality={graphicsQuality}
+            resetCarRef={resetCarRef}
+            onBotsUpdate={setBots}
           />
           <HUD
             vehicleState={vehicleState}
@@ -504,6 +514,12 @@ export default function App() {
             onSendQuickChat={handleSendQuickChat}
             onTouchInput={setTouchInputs}
             isDarkMode={isDarkMode}
+            graphicsQuality={graphicsQuality}
+            onGraphicsQualityChange={setGraphicsQuality}
+            aiBotsCount={roomState.aiBotsCount}
+            playerInfo={currentPlayer}
+            peerPlayers={peerPlayersMap}
+            bots={bots}
           />
         </>
       )}
